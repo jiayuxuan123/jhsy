@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>镜花水月</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* 定义基础字体大小，便于rem计算 */
+        /* 1rem = 16px */
+        :root {
+            font-size: 16px;
+        }
+
+        /* 媒体查询，针对不同屏幕宽度调整基础字体大小 */
+        @media (max-width: 600px) {
+            :root {
+                font-size: 14px; /* 小屏幕设备上1rem = 14px */
+            }
+        }
+        @media (min-width: 1024px) {
+            :root {
+                font-size: 18px; /* 大屏幕设备上1rem = 18px */
+            }
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden; /* 防止滚动条出现 */
+            user-select: none; /* 禁用文本选择 */
+            touch-action: none; /* 禁用浏览器默认触摸行为，优化拖拽 */
+            font-family: 'Roboto', sans-serif;
+            -webkit-tap-highlight-color: transparent; /* 移除移动端点击高亮 */
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #121212;
+            color: #ffffff;
+        }
+        .media-display {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background-color: #121212;
+            position: relative;
+        }
+        .media-display img,
+        .media-display video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            max-width: 100%;
+            max-height: 100%;
+            border: none;
+            box-shadow: none;
+            border-radius: 0;
+        }
+        .loading-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #ffffff;
+            pointer-events: none; /* 确保不影响底层点击 */
+        }
+        .loading-spinner {
+            width: 1.5rem;
+            height: 1.5rem;
+            border: 0.1875rem solid #ffffff; /* 3px */
+            border-top-color: #757575;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Controls Panel */
+        .controls-panel {
+            position: fixed;
+            top: 0;
+            left: 100%; /* 初始时在屏幕外 */
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            display: flex;
+            justify-content: flex-end; /* 面板从右侧滑出 */
+            align-items: center;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+        }
+        .controls-panel.visible {
+            transform: translateX(-100%); /* 滑入屏幕 */
+        }
+        .controls-container {
+            width: 80%;
+            max-width: 25rem; /* 400px */
+            background-color: #1e1e1e;
+            padding: 1.5rem; /* 24px */
+            border-radius: 1rem 0 0 1rem; /* 16px 圆角在左侧 */
+            box-shadow: 0 0.25rem 1.25rem rgba(0, 0, 0, 0.5); /* 0 4px 20px */
+            color: #e0e0e0;
+            height: 100%; /* 让内容区域可以滚动 */
+            overflow-y: auto; /* 超出高度时滚动 */
+            box-sizing: border-box; /* padding计入宽度和高度 */
+        }
+        h2 {
+            margin: 0 0 1rem; /* 16px */
+            font-size: 1.25rem; /* 20px */
+            font-weight: 500;
+            color: #ffffff;
+        }
+        .current-category {
+            font-size: 0.8rem; /* 14px */
+            color: #b0b0b0;
+            margin-bottom: 1rem; /* 16px */
+        }
+        .instructions {
+            font-size: 0.8rem; /* 14px */
+            color: #b0b0b0;
+            margin-bottom: 1rem; /* 16px */
+            line-height: 1.5;
+        }
+        .instructions ul {
+            margin: 0;
+            padding-left: 1.25rem; /* 20px */
+        }
+        .instructions li {
+            margin-bottom: 0.5rem; /* 8px */
+        }
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem; /* 12px */
+        }
+        .controls select,
+        .controls input[type="number"] {
+            width: 100%;
+            padding: 0.75rem; /* 12px */
+            font-size: 0.9rem; /* 16px */
+            border-radius: 0.5rem; /* 8px */
+            border: 0.0625rem solid #3c4043; /* 1px */
+            background-color: #2c2c2c;
+            color: #ffffff;
+            appearance: none; /* 移除默认下拉箭头 */
+            -webkit-appearance: none;
+            -moz-appearance: none;
+        }
+        .controls select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='%23ffffff'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+            background-position: right 0.75rem center; /* 右侧12px，垂直居中 */
+            background-repeat: no-repeat;
+            padding-right: 2.5rem; /* 40px，为箭头留出空间 */
+        }
+        .controls button {
+            width: 100%;
+            padding: 0.75rem; /* 12px */
+            font-size: 0.9rem; /* 16px */
+            font-weight: 500;
+            border-radius: 0.5rem; /* 8px */
+            border: none;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: #ffffff;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden; /* 隐藏::after的溢出部分 */
+            transition: background-color 0.2s;
+            -webkit-tap-highlight-color: transparent; /* 移除移动端点击高亮 */
+        }
+        .controls button:hover {
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+        /* 点击波纹效果 */
+        .controls button::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.3s, height 0.3s;
+        }
+        .controls button:active::after {
+            width: 12.5rem; /* 200px */
+            height: 12.5rem; /* 200px */
+        }
+
+        /* 自动播放和随机模式设置 */
+        .auto-play-setting, .random-mode-setting {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0; /* 8px */
+            gap: 0.5rem; /* 8px */
+        }
+        .auto-play-setting label, .random-mode-setting label {
+            font-size: 0.9rem; /* 16px */
+            font-weight: 500;
+            color: #ffffff;
+        }
+        .auto-play-input-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem; /* 8px */
+        }
+        .auto-play-input-group input[type="number"] {
+            width: 3.75rem; /* 60px */
+            text-align: center;
+            padding: 0.5rem; /* 8px */
+        }
+        .auto-play-input-group span {
+            color: #e0e0e0;
+        }
+        /* 切换开关样式 */
+        .auto-play-toggle, .random-mode-toggle {
+            width: 2.25rem; /* 36px */
+            height: 1.25rem; /* 20px */
+            background-color: #3c4043;
+            border-radius: 0.625rem; /* 10px */
+            position: relative;
+            cursor: pointer;
+            flex-shrink: 0; /* 防止开关被挤压 */
+        }
+        .auto-play-toggle::before, .random-mode-toggle::before {
+            content: '';
+            position: absolute;
+            top: 0.125rem; /* 2px */
+            left: 0.125rem; /* 2px */
+            width: 1rem; /* 16px */
+            height: 1rem; /* 16px */
+            background-color: #ffffff;
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+        /* 选中状态 */
+        #auto-play-toggle:checked + .auto-play-toggle::before,
+        #random-mode-toggle:checked + .random-mode-toggle::before {
+            transform: translateX(1rem); /* 16px */
+            background-color: #757575;
+        }
+        #auto-play-toggle, #random-mode-toggle {
+            display: none; /* 隐藏原生checkbox */
+        }
+
+        /* 浮动按钮样式 */
+        .draggable-item {
+            position: fixed;
+            z-index: 1001;
+            /* 初始默认定位（通过CSS而非JS来提供默认值，JS只覆盖拖动后的位置） */
+            /* 避免使用left/top的默认值，让right/bottom起作用 */
+        }
+
+        /* 桌面端/大屏幕默认位置 */
+        #download-button-container { bottom: 1.5rem; right: 15rem; }
+        #play-pause-button-container { bottom: 1.5rem; right: 10.5rem; }
+        #next-button-container { bottom: 1.5rem; right: 6rem; }
+        #drag-handle-container { bottom: 1.5rem; right: 1.5rem; }
+
+        .button-style {
+            width: 3rem; /* 48px */
+            height: 3rem; /* 48px */
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: #ffffff;
+            box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.3); /* 0 2px 8px */
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
+            -webkit-tap-highlight-color: transparent; /* 移除移动端点击高亮 */
+        }
+        /* 针对小屏幕设备的按钮位置调整 */
+        @media (max-width: 600px) {
+            .button-style {
+                width: 2.5rem; /* 40px */
+                height: 2.5rem; /* 40px */
+            }
+            #download-button-container { right: 11.25rem; /* 180px */ }
+            #play-pause-button-container { right: 8.125rem; /* 130px */ }
+            #next-button-container { right: 5rem; /* 80px */ }
+            #drag-handle-container { right: 1.25rem; /* 20px */ }
+        }
+        .button-style:hover {
+            background-color: rgba(0, 0, 0, 0.7);
+            transform: scale(1.05);
+            box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.4); /* 0 4px 12px */
+        }
+        /* 按钮点击波纹效果 */
+        .button-style::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.3s, height 0.3s;
+        }
+        .button-style:active::after {
+            width: 6.25rem; /* 100px */
+            height: 6.25rem; /* 100px */
+        }
+        #drag-handle-container .button-style {
+            cursor: move; /* 拖拽手柄图标 */
+        }
+        /* Material Icons 字体大小 */
+        .button-style .material-icons {
+            font-size: 1.25rem; /* 20px */
+        }
+    </style>
+</head>
+<body>
+    <div class="media-display">
+        <div class="loading-overlay">
+            <div class="loading-spinner"></div>
+            <p>正在加载内容...</p>
+        </div>
+    </div>
+
+    <div class="draggable-item" id="download-button-container">
+        <div class="button-style" onclick="downloadImage()">
+            <span class="material-icons">download</span>
+        </div>
+    </div>
+
+    <div class="draggable-item" id="play-pause-button-container">
+        <div class="button-style" onclick="togglePlayPause()">
+            <span class="material-icons" id="play-pause-icon">play_arrow</span>
+        </div>
+    </div>
+
+    <div class="draggable-item" id="next-button-container">
+        <div class="button-style" onclick="fetchContent()">
+            <span class="material-icons">navigate_next</span>
+        </div>
+    </div>
+
+    <div class="draggable-item" id="drag-handle-container">
+        <div class="button-style" onclick="toggleControls(event)">
+            <span class="material-icons">settings</span>
+        </div>
+    </div>
+
+    <div class="controls-panel" id="controls-panel">
+        <div class="controls-container">
+            <h2>设置与分类</h2>
+            <p class="current-category" id="current-category">当前分类：随机分类</p>
+            <div class="instructions">
+                <h3>操作说明</h3>
+                <ul>
+                    <li>双击屏幕：重置按钮位置（仅在设置面板关闭时）。</li>
+                    <li>下载按钮：保存图片到 Download 目录（仅图片模式）。</li>
+                    <li>暂停/播放：控制视频播放（仅视频模式）。</li>
+                    <li>下一页：加载新内容。</li>
+                    <li>设置：打开此面板调整分类和定时切换。</li>
+                </ul>
+            </div>
+            <div class="controls">
+                <select id="class-select">
+                    <option value="">随机分类</option>
+                    <optgroup label="✨ 视频">
+                        <option value="meinv">随机小姐姐视频</option>
+                        <option value="rewu">热门视频</option>
+                    </optgroup>
+                    <optgroup label="图片系列">
+                        <option value="heisi">黑丝图片</option>
+                        <option value="baisi">白丝图片</option>
+                        <option value="jk">JK图片</option>
+                        <option value="meinvpic">小姐姐图片</option>
+                    </optgroup>
+                </select>
+
+                <div class="auto-play-setting">
+                    <label for="auto-play-toggle">定时切换</label>
+                    <div class="auto-play-input-group">
+                        <input type="number" id="auto-play-interval" value="10" min="1">
+                        <span>秒</span>
+                        <input type="checkbox" id="auto-play-toggle">
+                        <label class="auto-play-toggle" for="auto-play-toggle"></label>
+                    </div>
+                </div>
+
+                <div class="random-mode-setting">
+                    <label for="random-mode-toggle">随机模式</label>
+                    <div class="auto-play-input-group">
+                        <input type="checkbox" id="random-mode-toggle">
+                        <label class="random-mode-toggle" for="random-mode-toggle"></label>
+                    </div>
+                </div>
+
+                <button onclick="updateMedia()">加载新内容</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const baseUrl = 'https://v2.xxapi.cn/api/';
+        const rewuApiUrl = 'http://api.yujn.cn/api/rewu.php?type=video';
+        const mediaDisplay = document.querySelector('.media-display');
+        const classSelect = document.getElementById('class-select');
+        const controlsPanel = document.getElementById('controls-panel');
+        const autoPlayToggle = document.getElementById('auto-play-toggle');
+        const autoPlayIntervalInput = document.getElementById('auto-play-interval');
+        const randomModeToggle = document.getElementById('random-mode-toggle');
+        const currentCategoryDisplay = document.getElementById('current-category');
+        const playPauseButton = document.getElementById('play-pause-button-container');
+        const downloadButton = document.getElementById('download-button-container');
+        const nextButton = document.getElementById('next-button-container');
+        const dragHandleButton = document.getElementById('drag-handle-container');
+        const playPauseIcon = document.getElementById('play-pause-icon');
+        let autoPlayIntervalId;
+        let currentMediaElement = null;
+        let currentMediaUrl = '';
+        let errorCount = 0;
+        const maxRetries = 2;
+
+        const DOWNLOAD_BUTTON_KEY = 'downloadButtonPosition';
+        const NEXT_BUTTON_KEY = 'nextButtonPosition';
+        const PLAY_PAUSE_BUTTON_KEY = 'playPauseButtonPosition';
+        const DRAG_HANDLE_KEY = 'dragHandlePosition';
+        const DISCLAIMER_AGREED_KEY = 'disclaimerAgreed';
+
+        // 存储按钮的像素位置 (left, top)
+        function savePosition(element, key) {
+            const position = {
+                left: element.style.left,
+                top: element.style.top
+            };
+            localStorage.setItem(key, JSON.stringify(position));
+        }
+
+        // 加载并应用按钮位置
+        function loadPositions() {
+            const elements = [
+                { id: 'download-button-container', key: DOWNLOAD_BUTTON_KEY },
+                { id: 'play-pause-button-container', key: PLAY_PAUSE_BUTTON_KEY },
+                { id: 'next-button-container', key: NEXT_BUTTON_KEY },
+                { id: 'drag-handle-container', key: DRAG_HANDLE_KEY }
+            ];
+
+            elements.forEach(({ id, key }) => {
+                const element = document.getElementById(id);
+                const storedPosition = JSON.parse(localStorage.getItem(key));
+
+                if (storedPosition && storedPosition.left && storedPosition.top) {
+                    // 如果有存储的绝对位置，应用它
+                    element.style.left = storedPosition.left;
+                    element.style.top = storedPosition.top;
+                    element.style.right = 'auto'; // 清除CSS默认的right/bottom
+                    element.style.bottom = 'auto';
+                } else {
+                    // 否则，让CSS中定义的right/bottom默认位置生效
+                    element.style.left = ''; // 清除可能的旧的内联left/top
+                    element.style.top = '';
+                    element.style.right = ''; // 允许CSS的right生效
+                    element.style.bottom = ''; // 允许CSS的bottom生效
+                }
+                element.style.display = 'block'; // 确保按钮可见
+                element.style.visibility = 'visible';
+            });
+        }
+
+        // 重置按钮位置到CSS默认值
+        function resetButtonPositions() {
+            const elements = [
+                { id: 'download-button-container', key: DOWNLOAD_BUTTON_KEY },
+                { id: 'play-pause-button-container', key: PLAY_PAUSE_BUTTON_KEY },
+                { id: 'next-button-container', key: NEXT_BUTTON_KEY },
+                { id: 'drag-handle-container', key: DRAG_HANDLE_KEY }
+            ];
+
+            elements.forEach(({ id, key }) => {
+                const element = document.getElementById(id);
+                localStorage.removeItem(key); // 清除存储的位置
+                // 移除内联样式，让CSS的默认right/bottom生效
+                element.style.left = '';
+                element.style.top = '';
+                element.style.right = '';
+                element.style.bottom = '';
+                // 强制浏览器重新计算样式，确保CSS的默认位置被应用
+                // 简单的强制重绘方法，虽然不优雅但有效
+                element.style.display = 'none';
+                element.offsetHeight; // Trigger reflow
+                element.style.display = 'block';
+            });
+            if (typeof webapp !== 'undefined') {
+                webapp.toast('按钮位置已重置');
+            }
+        }
+
+
+        function toggleControls(event) {
+            if (event) event.stopPropagation(); // 阻止事件冒泡，防止双击屏幕事件被触发
+            controlsPanel.classList.toggle('visible');
+        }
+
+        function togglePlayPause() {
+            if (!currentMediaElement || currentMediaElement.tagName !== 'VIDEO') return;
+            if (currentMediaElement.paused) {
+                currentMediaElement.play().then(() => {
+                    playPauseIcon.textContent = 'pause';
+                }).catch(error => {
+                    console.error('播放失败:', error);
+                    if (typeof webapp !== 'undefined') {
+                        webapp.toast('视频播放失败，请尝试手动交互');
+                    }
+                });
+            } else {
+                currentMediaElement.pause();
+                playPauseIcon.textContent = 'play_arrow';
+            }
+        }
+
+        async function downloadImage() {
+            if (!currentMediaElement || currentMediaElement.tagName !== 'IMG' || !currentMediaUrl) return;
+            if (typeof webapp === 'undefined') {
+                console.warn('WebIDE 接口不可用，无法下载图片');
+                return;
+            }
+            try {
+                const response = await fetch(currentMediaUrl);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch image: ${response.statusText}`);
+                }
+                const blob = await response.blob();
+
+                if (!blob.type.startsWith('image/')) {
+                    throw new Error('Fetched content is not an image.');
+                }
+
+                const reader = new FileReader();
+                reader.onloadend = () => { // 使用 onloadend 确保读取完成
+                    const base64DataUrl = reader.result; // data:image/jpeg;base64,...
+                    const rawBase64 = base64DataUrl.split(',')[1]; // 获取纯Base64字符串
+
+                    // 根据MIME类型或URL获取文件扩展名
+                    let fileExtension = 'jpg';
+                    if (blob.type.includes('png')) fileExtension = 'png';
+                    else if (blob.type.includes('gif')) fileExtension = 'gif';
+                    else if (blob.type.includes('webp')) fileExtension = 'webp';
+                    // Fallback to URL extension
+                    else if (currentMediaUrl.match(/\.(png|gif|jpe?g|webp)$/i)) {
+                        fileExtension = currentMediaUrl.split('.').pop().toLowerCase();
+                    }
+
+                    const filename = `image_${Date.now()}.${fileExtension}`;
+                    
+                    // 假设 webapp.storage(filename, base64String) 可以直接保存
+                    webapp.storage(filename, rawBase64);
+                    webapp.toast('图片已保存到 Download 目录');
+                };
+                reader.onerror = () => {
+                    webapp.toast('图片下载失败');
+                };
+                reader.readAsDataURL(blob);
+            } catch (error) {
+                console.error('下载错误:', error);
+                webapp.toast(`图片下载失败: ${error.message}`);
+            }
+        }
+
+        let isDragging = false;
+        let startX, startY;
+        let activeElement = null;
+        let initialX, initialY;
+        let clickTimer = null; // 用于区分点击和拖拽
+        const CLICK_THRESHOLD = 5; // 移动小于此像素视为点击
+        let isClick = true; // 假设是点击，直到移动超过阈值
+
+        const draggableItems = document.querySelectorAll('.draggable-item');
+        draggableItems.forEach(item => {
+            // 确保事件监听在 button-style 内部的点击区域
+            item.querySelector('.button-style').addEventListener('mousedown', startDrag);
+            item.querySelector('.button-style').addEventListener('touchstart', startDrag, { passive: false });
+        });
+
+        function startDrag(e) {
+            isDragging = true;
+            activeElement = this.parentNode; // 获取父元素 .draggable-item
+            isClick = true; // 假设开始是点击
+
+            if (e.type === 'touchstart') {
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+            } else {
+                startX = e.clientX;
+                startY = e.clientY;
+            }
+
+            // 获取元素当前的计算位置 (相对于视口)
+            const rect = activeElement.getBoundingClientRect();
+            initialX = rect.left;
+            initialY = rect.top;
+
+            // 为了拖动时准确控制位置，将 right/bottom 清除，只用 left/top
+            activeElement.style.right = 'auto';
+            activeElement.style.bottom = 'auto';
+            activeElement.style.left = `${initialX}px`;
+            activeElement.style.top = `${initialY}px`;
+
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('touchmove', drag, { passive: false });
+            document.addEventListener('mouseup', stopDrag);
+            document.addEventListener('touchend', stopDrag);
+
+            // 阻止默认行为，尤其是触摸事件中的滚动
+            if (e.cancelable) {
+                e.preventDefault();
+            }
+        }
+
+        function drag(e) {
+            if (!isDragging || !activeElement) return;
+
+            let currentX, currentY;
+            if (e.type === 'touchmove') {
+                currentX = e.touches[0].clientX;
+                currentY = e.touches[0].clientY;
+            } else {
+                currentX = e.clientX;
+                currentY = e.clientY;
+            }
+
+            let dx = currentX - startX;
+            let dy = currentY - startY;
+
+            // 如果移动距离超过阈值，则不是点击，是拖拽
+            if (Math.abs(dx) > CLICK_THRESHOLD || Math.abs(dy) > CLICK_THRESHOLD) {
+                isClick = false;
+            }
+
+            let newX = initialX + dx;
+            let newY = initialY + dy;
+
+            // 限制拖动范围在视口内
+            const minX = 0;
+            const minY = 0;
+            const maxX = window.innerWidth - activeElement.offsetWidth;
+            const maxY = window.innerHeight - activeElement.offsetHeight;
+
+            activeElement.style.left = `${Math.max(minX, Math.min(newX, maxX))}px`;
+            activeElement.style.top = `${Math.max(minY, Math.min(newY, maxY))}px`;
+
+            if (e.cancelable) {
+                e.preventDefault(); // 阻止默认行为，防止滚动
+            }
+        }
+
+        function stopDrag(e) {
+            isDragging = false;
+
+            if (activeElement) {
+                // 如果是点击事件，触发原本的onclick
+                if (isClick) {
+                    const button = activeElement.querySelector('.button-style');
+                    if (button && button.onclick) {
+                        button.onclick.call(button, e); // 调用原始的onclick事件
+                    }
+                } else {
+                    // 如果是拖拽，保存位置
+                    const key = activeElement.id === 'download-button-container' ? DOWNLOAD_BUTTON_KEY :
+                                activeElement.id === 'play-pause-button-container' ? PLAY_PAUSE_BUTTON_KEY :
+                                activeElement.id === 'next-button-container' ? NEXT_BUTTON_KEY :
+                                DRAG_HANDLE_KEY;
+                    savePosition(activeElement, key);
+                }
+            }
+
+            activeElement = null;
+            document.removeEventListener('mousemove', drag);
+            document.removeEventListener('touchmove', drag);
+            document.removeEventListener('mouseup', stopDrag);
+            document.removeEventListener('touchend', stopDrag);
+        }
+
+        async function fetchContent(retryCount = 0) {
+            mediaDisplay.innerHTML = `
+                <div class="loading-overlay">
+                    <div class="loading-spinner"></div>
+                    <p>正在加载...</p>
+                </div>
+            `;
+            playPauseIcon.textContent = 'play_arrow'; // 每次加载新内容时重置播放图标
+            currentMediaUrl = ''; // 清空当前媒体URL
+
+            // 根据随机模式或选择的分类确定内容类型
+            const classValue = randomModeToggle.checked ?
+                ['heisi', 'baisi', 'jk', 'meinvpic', 'meinv', 'rewu'][Math.floor(Math.random() * 6)] :
+                classSelect.value || ['heisi', 'baisi', 'jk', 'meinvpic', 'meinv', 'rewu'][Math.floor(Math.random() * 6)];
+            const isVideo = classValue === 'meinv' || classValue === 'rewu';
+            let url = classValue === 'rewu' ? rewuApiUrl : `${baseUrl}${classValue}?return=json`;
+
+            const categoryNames = {
+                heisi: '黑丝图片',
+                baisi: '白丝图片',
+                jk: 'JK图片',
+                meinvpic: '小姐姐图片',
+                meinv: '随机小姐姐视频',
+                rewu: '热门视频',
+                '': '随机分类' // 如果没有选择任何特定分类，默认为随机
+            };
+            currentCategoryDisplay.textContent = `当前分类：${categoryNames[classValue]}`;
+
+            // 动态控制按钮显示
+            playPauseButton.style.display = isVideo ? 'block' : 'none';
+            downloadButton.style.display = isVideo ? 'none' : 'block';
+            nextButton.style.display = 'block';
+            dragHandleButton.style.display = 'block';
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`API请求失败，状态码: ${response.status}`);
+                }
+                const data = await response.json();
+
+                // 检查API返回的数据结构和状态码
+                if (data.code !== 200 && classValue !== 'rewu') {
+                    throw new Error(`API返回错误代码: ${data.code}, 消息: ${data.msg || '无'}`);
+                }
+
+                const mediaUrl = classValue === 'rewu' ? data.url : data.data;
+                if (!mediaUrl) {
+                    throw new Error('API响应中未找到有效的URL');
+                }
+
+                currentMediaUrl = mediaUrl; // 更新当前媒体URL
+                mediaDisplay.innerHTML = ''; // 清空媒体显示区域
+
+                // 根据内容类型创建元素
+                currentMediaElement = isVideo ? document.createElement('video') : document.createElement('img');
+                currentMediaElement.src = mediaUrl;
+                
+                if (isVideo) {
+                    currentMediaElement.controls = false; // 隐藏原生视频控制器
+                    currentMediaElement.autoplay = true; // 尝试自动播放
+                    currentMediaElement.loop = false; // 默认不循环播放
+                    currentMediaElement.muted = true; // 默认静音，增加自动播放成功率
+                    currentMediaElement.setAttribute('playsinline', ''); // iOS Safari 行内播放
+                    currentMediaElement.setAttribute('webkit-playsinline', ''); // 旧版 iOS 行内播放
+                    currentMediaElement.setAttribute('x5-playsinline', ''); // 腾讯X5内核浏览器行内播放
+                    
+                    // 视频事件监听
+                    currentMediaElement.addEventListener('loadedmetadata', () => {
+                        // 视频元数据加载完成后尝试播放（解决某些浏览器限制）
+                        currentMediaElement.play().catch(error => {
+                            console.warn('视频自动播放被阻止:', error);
+                            // 可以在这里提示用户手动点击播放
+                            if (typeof webapp !== 'undefined') {
+                                // webapp.toast('视频需要点击才能播放'); // 可选提示
+                            }
+                        });
+                    });
+                    currentMediaElement.addEventListener('play', () => {
+                        playPauseIcon.textContent = 'pause';
+                    });
+                    currentMediaElement.addEventListener('pause', () => {
+                        playPauseIcon.textContent = 'play_arrow';
+                    });
+                    currentMediaElement.addEventListener('ended', () => {
+                        // 视频播放结束，如果定时切换开启，则加载下一个
+                        if (autoPlayToggle.checked) fetchContent();
+                    });
+                    
+                } else {
+                    currentMediaElement.alt = '随机图片';
+                    // 图片加载完成后清除错误计数
+                    currentMediaElement.onload = () => {
+                        errorCount = 0;
+                    };
+                }
+                
+                // 统一错误处理
+                currentMediaElement.onerror = () => {
+                    console.error(`媒体加载失败，URL: ${mediaUrl}`);
+                    if (retryCount < maxRetries) {
+                        // 尝试重新加载
+                        fetchContent(retryCount + 1);
+                    } else {
+                        // 达到最大重试次数，显示错误信息
+                        errorCount++;
+                        mediaDisplay.innerHTML = `<p style="color: #ff5252; text-align: center;">加载失败，可能是URL失效或网络问题。${errorCount >= 3 ? '建议检查网络或更换分类。' : ''}</p>`;
+                        if (typeof webapp !== 'undefined') {
+                            webapp.toast(`加载失败${errorCount >= 3 ? '，建议检查网络或更换分类' : ''}`);
+                        }
+                        if (errorCount >= 3) errorCount = 0; // 达到一定次数后重置计数，防止无限提示
+                    }
+                };
+
+                mediaDisplay.appendChild(currentMediaElement);
+                
+            } catch (error) {
+                console.error('获取内容时发生错误:', error);
+                if (retryCount < maxRetries) {
+                    fetchContent(retryCount + 1);
+                } else {
+                    errorCount++;
+                    mediaDisplay.innerHTML = `<p style="color: #ff5252; text-align: center;">加载失败。错误信息: ${error.message}${errorCount >= 3 ? ' 建议检查网络或更换分类。' : ''}</p>`;
+                    if (typeof webapp !== 'undefined') {
+                        webapp.toast(`加载失败${errorCount >= 3 ? '，建议检查网络或更换分类' : ''}`);
+                    }
+                    if (errorCount >= 3) errorCount = 0;
+                }
+            }
+        }
+
+        function updateMedia() {
+            fetchContent();
+            toggleControls(); // 关闭设置面板
+        }
+
+        // 定时切换逻辑
+        autoPlayToggle.addEventListener('change', (e) => {
+            clearInterval(autoPlayIntervalId); // 每次切换前先清除旧的定时器
+            if (e.target.checked) {
+                let intervalSeconds = parseInt(autoPlayIntervalInput.value, 10);
+                if (isNaN(intervalSeconds) || intervalSeconds < 1) {
+                    intervalSeconds = 10; // 默认值
+                    autoPlayIntervalInput.value = 10;
+                }
+                // 立即加载一次，然后开始定时器
+                fetchContent();
+                autoPlayIntervalId = setInterval(fetchContent, intervalSeconds * 1000);
+            }
+        });
+
+        // 双击屏幕重置按钮位置
+        document.addEventListener('dblclick', (e) => {
+            // 只有当设置面板未打开时才允许重置按钮位置
+            if (!controlsPanel.classList.contains('visible')) {
+                resetButtonPositions();
+            }
+        });
+        
+        // 确保在页面加载和窗口大小改变时调整按钮位置
+        window.addEventListener('resize', () => {
+            // 窗口大小改变时，重新加载存储的绝对像素位置，这样会根据新视口调整按钮的最终显示位置
+            // 因为`left/top`是绝对像素值，但如果原始位置是`right/bottom`，
+            // 再次加载会重新计算并应用CSS的`right/bottom`，达到响应式布局。
+            loadPositions();
+        });
+
+        window.onload = () => {
+            // WebIDE 接口检查
+            if (typeof webapp !== 'undefined') {
+                webapp.entire(true); // 全屏模式
+                webapp.shine(true); // 屏幕常亮
+                // webapp.video() 接口不再使用，视频自动播放由JS控制
+            } else {
+                console.warn('未找到 webapp 接口，WebIDE 特有功能将不可用。');
+            }
+
+            loadPositions(); // 首次加载时应用按钮位置
+
+            // 免责声明处理
+            if (localStorage.getItem(DISCLAIMER_AGREED_KEY) === 'true') {
+                fetchContent(); // 已同意过，直接加载内容
+            } else {
+                const disclaimer = `
+欢迎使用 【镜花水月】
+
+【重要提示】
+本应用内容均来自第三方公开API，仅用于学习与分享，所有内容版权归原作者所有。
+本应用不对API源的内容真实性、合法性、完整性负责，不承担任何法律责任。
+请遵守当地法律法规，合理使用本应用。
+
+点击【确定】表示您已阅读并同意以上条款，否则应用将自动退出。`;
+
+                // 使用原生confirm，如果存在webapp接口则使用其退出功能
+                if (!confirm(disclaimer)) {
+                    if (typeof webapp !== 'undefined') {
+                        webapp.secede(); // 退出应用
+                    } else {
+                        console.log('用户拒绝免责声明，应用无法退出 (WebIDE接口未找到)。');
+                        // 对于非WebIDE环境，可能需要其他方式退出或禁用功能
+                    }
+                } else {
+                    localStorage.setItem(DISCLAIMER_AGREED_KEY, 'true');
+                    fetchContent(); // 用户同意，加载内容
+                }
+            }
+        };
+    </script>
+</body>
+</html>
